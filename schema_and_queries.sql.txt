@@ -1,0 +1,321 @@
+-- 1. Kategoriler Tablosu
+CREATE TABLE kategoriler (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ad VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- 2. Musteriler Tablosu
+CREATE TABLE musteriler (
+    id INTEGER PRIMARY KEY,
+    ad VARCHAR(50) NOT NULL,
+    soyad VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    sehir VARCHAR(50),
+    kayit_tarihi DATE
+);
+
+-- 3. Urunler Tablosu
+CREATE TABLE urunler (
+    id INTEGER PRIMARY KEY,
+    ad VARCHAR(100) NOT NULL,
+    kategori_id INTEGER REFERENCES kategoriler(id),
+    fiyat DECIMAL(10, 2) CHECK (fiyat > 0),
+    stok INTEGER DEFAULT 0
+);
+
+-- 4. Siparisler Tablosu
+CREATE TABLE siparisler (
+    id INTEGER PRIMARY KEY,
+    musteri_id INTEGER REFERENCES musteriler(id),
+    tarih DATE,
+    durum VARCHAR(20) CHECK (durum IN ('Hazırlanıyor', 'Kargoda', 'Teslim Edildi', 'İptal'))
+);
+
+-- 5. SiparisDetaylari Tablosu
+CREATE TABLE siparisdetaylari (
+    id INTEGER PRIMARY KEY,
+    siparis_id INTEGER REFERENCES siparisler(id),
+    urun_id INTEGER REFERENCES urunler(id),
+    adet INTEGER CHECK (adet >= 1),
+    birim_fiyat DECIMAL(10, 2)
+);
+
+-- 1. Kategoriler
+INSERT INTO kategoriler (id, ad) OVERRIDING SYSTEM VALUE VALUES
+(1, 'Elektronik'),
+(2, 'Giyim'),
+(3, 'Kitap'),
+(4, 'Ev & Yaşam');
+
+-- Identity sayacını en son eklenen id (4) olarak güncelliyoruz
+SELECT setval(pg_get_serial_sequence('kategoriler', 'id'), (SELECT MAX(id) FROM kategoriler));
+
+-- 2. Musteriler
+INSERT INTO musteriler (id, ad, soyad, email, sehir, kayit_tarihi) VALUES
+(1, 'Ayşe', 'Yılmaz', 'ayse@mail.com', 'İstanbul', '2024-01-15'),
+(2, 'Mehmet', 'Kaya', 'mehmet@mail.com', 'Ankara', '2024-02-20'),
+(3, 'Zeynep', 'Demir', 'zeynep@mail.com', 'İzmir', '2024-03-05'),
+(4, 'Can', 'Öztürk', 'can@mail.com', 'Bursa', '2024-04-10'),
+(5, 'Elif', 'Şahin', 'elif@mail.com', 'İstanbul', '2024-05-22'),
+(6, 'Burak', 'Arslan', 'burak@mail.com', 'Antalya', '2024-06-30');
+
+-- 3. Urunler
+INSERT INTO urunler (id, ad, kategori_id, fiyat, stok) VALUES
+(1, 'Kablosuz Kulaklık', 1, 1250, 40),
+(2, 'Akıllı Saat', 1, 3400, 15),
+(3, 'Laptop Çantası', 1, 650, 0),
+(4, 'Kot Pantolon', 2, 899, 60),
+(5, 'Kışlık Mont', 2, 2750, 8),
+(6, 'Spor Ayakkabı', 2, 1899, 25),
+(7, 'Roman: Sessiz Şehir', 3, 185, 120),
+(8, 'Python ile Programlama', 3, 420, 35),
+(9, 'Kahve Makinesi', 4, 2100, 12),
+(10, 'Masa Lambası', 4, 540, 0);
+
+-- 4. Siparisler
+INSERT INTO siparisler (id, musteri_id, tarih, durum) VALUES
+(1, 1, '2024-07-01', 'Teslim Edildi'),
+(2, 2, '2024-07-03', 'Teslim Edildi'),
+(3, 1, '2024-07-10', 'Kargoda'),
+(4, 3, '2024-07-12', 'İptal'),
+(5, 4, '2024-07-15', 'Teslim Edildi'),
+(6, 5, '2024-07-18', 'Hazırlanıyor'),
+(7, 2, '2024-07-20', 'Teslim Edildi'),
+(8, 3, '2024-07-25', 'Teslim Edildi');
+
+-- 5. SiparisDetaylari
+INSERT INTO siparisdetaylari (id, siparis_id, urun_id, adet, birim_fiyat) VALUES
+(1, 1, 1, 1, 1250),
+(2, 1, 7, 2, 185),
+(3, 2, 2, 1, 3400),
+(4, 3, 4, 2, 899),
+(5, 3, 6, 1, 1899),
+(6, 4, 5, 1, 2750),
+(7, 5, 8, 3, 420),
+(8, 5, 7, 1, 185),
+(9, 6, 9, 1, 2100),
+(10, 7, 1, 2, 1250),
+(11, 7, 3, 1, 650),
+(12, 8, 6, 1, 1899),
+(13, 8, 4, 1, 899);
+
+-- 1. Tüm ürünleri fiyatı en yüksekten en düşüğe doğru listele
+SELECT * FROM urunler 
+ORDER BY fiyat DESC;
+
+-- 2. İstanbul'daki müşterileri ada göre alfabetik sırala
+SELECT * FROM musteriler 
+WHERE sehir = 'İstanbul' 
+ORDER BY ad ASC;
+
+-- 3. Stokta olmayan (stok = 0) ürünleri getir
+SELECT * FROM urunler 
+WHERE stok = 0;
+
+-- 4. Fiyatı 500 ile 2000 TL arasındaki ürünleri, önce kategoriye sonra fiyata göre sırala
+SELECT * FROM urunler 
+WHERE fiyat BETWEEN 500 AND 2000 
+ORDER BY kategori_id ASC, fiyat ASC;
+
+-- 5. En pahalı 3 ürünü getir
+SELECT * FROM urunler 
+ORDER BY fiyat DESC 
+LIMIT 3;
+
+-- 6. Adında "Kitap" ya da "Programlama" geçen ürünleri bul (LIKE kullan)
+SELECT * FROM urunler 
+WHERE ad LIKE '%Kitap%' OR ad LIKE '%Programlama%';
+
+-- 7. Durumu "Teslim Edildi" olan siparişleri en yeni tarihten eskiye doğru listele
+SELECT * FROM siparisler 
+WHERE durum = 'Teslim Edildi' 
+ORDER BY tarih DESC;
+
+-- 8. Her ürünün adını, kategori adıyla birlikte göster (INNER JOIN)
+SELECT u.ad AS urun_adi, k.ad AS kategori_adi
+FROM urunler u
+INNER JOIN kategoriler k ON u.kategori_id = k.id;
+
+-- 9. Her siparişin numarasını, tarihini ve siparişi veren müşterinin adını-soyadını listele
+SELECT s.id AS siparis_no, s.tarih, m.ad || ' ' || m.soyad AS musteri_ad_soyad
+FROM siparisler s
+INNER JOIN musteriler m ON s.musteri_id = m.id;
+
+-- 10. Bir siparişin tüm detayını göster: müşteri adı, ürün adı, adet, birim fiyat ve satır toplamı (4 tablo JOIN)
+SELECT 
+    m.ad || ' ' || m.soyad AS musteri_adi,
+    u.ad AS urun_adi,
+    sd.adet,
+    sd.birim_fiyat,
+    (sd.adet * sd.birim_fiyat) AS satir_toplami
+FROM siparisdetaylari sd
+INNER JOIN siparisler s ON sd.siparis_id = s.id
+INNER JOIN musteriler m ON s.musteri_id = m.id
+INNER JOIN urunler u ON sd.urun_id = u.id;
+
+-- 11. Tüm müşterileri ve verdikleri sipariş sayısını listele (LEFT JOIN)
+SELECT m.ad, m.soyad, COUNT(s.id) AS siparis_sayisi
+FROM musteriler m
+LEFT JOIN siparisler s ON m.id = s.musteri_id
+GROUP BY m.id, m.ad, m.soyad;
+
+-- 12. Hiç satılmamış ürünleri bul (LEFT JOIN + NULL kontrolü)
+SELECT u.*
+FROM urunler u
+LEFT JOIN siparisdetaylari sd ON u.id = sd.urun_id
+WHERE sd.id IS NULL;
+
+-- 13. Her kategorinin toplam satış tutarını hesapla ve en çok satandan başla (İptaller hariç)
+SELECT k.ad AS kategori_adi, COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) AS toplam_satis
+FROM kategoriler k
+LEFT JOIN urunler u ON k.id = u.kategori_id
+LEFT JOIN siparisdetaylari sd ON u.id = sd.urun_id
+LEFT JOIN siparisler s ON sd.siparis_id = s.id AND s.durum != 'İptal'
+GROUP BY k.id, k.ad
+ORDER BY toplam_satis DESC;
+
+-- 14. Fiyatı, tüm ürünlerin ortalama fiyatından yüksek olan ürünleri listele
+SELECT * FROM urunler
+WHERE fiyat > (SELECT AVG(fiyat) FROM urunler);
+
+-- 15. En az bir kez "Kablosuz Kulaklık" satın almış müşterilerin adlarını bul (IN ile)
+SELECT ad, soyad FROM musteriler
+WHERE id IN (
+    SELECT s.musteri_id 
+    FROM siparisler s
+    JOIN siparisdetaylari sd ON s.id = sd.siparis_id
+    JOIN urunler u ON sd.urun_id = u.id
+    WHERE u.ad = 'Kablosuz Kulaklık'
+);
+
+-- 16. Hiç sipariş vermemiş müşterileri bul (NOT IN ve NOT EXISTS ile iki farklı yol)
+-- Yöntem A: NOT IN ile
+SELECT * FROM musteriler 
+WHERE id NOT IN (SELECT DISTINCT musteri_id FROM siparisler);
+
+-- Yöntem B: NOT EXISTS ile
+SELECT * FROM musteriler m
+WHERE NOT EXISTS (SELECT 1 FROM siparisler s WHERE s.musteri_id = m.id);
+
+-- 17. En pahalı ürünün adını ve kategorisini getir (MAX'ı alt sorguda kullan)
+SELECT u.ad AS urun_adi, k.ad AS kategori_adi
+FROM urunler u
+JOIN kategoriler k ON u.kategori_id = k.id
+WHERE u.fiyat = (SELECT MAX(fiyat) FROM urunler);
+
+-- 18. Her ürünün yanında, kendi kategorisindeki ortalama fiyatı da göster (SELECT içinde ilişkili alt sorgu)
+SELECT u.ad, u.fiyat, u.kategori_id,
+    (SELECT AVG(u2.fiyat) FROM urunler u2 WHERE u2.kategori_id = u.kategori_id) AS kategori_ort_fiyat
+FROM urunler u;
+
+-- 19. Toplam harcaması, tüm müşterilerin ortalama harcamasından fazla olan müşterileri bul (FROM içinde alt sorgu)
+SELECT t.musteri_id, t.ad, t.soyad, t.toplam_harcama
+FROM (
+    SELECT m.id AS musteri_id, m.ad, m.soyad, COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) AS toplam_harcama
+    FROM musteriler m
+    JOIN siparisler s ON m.id = s.musteri_id AND s.durum != 'İptal'
+    JOIN siparisdetaylari sd ON s.id = sd.siparis_id
+    GROUP BY m.id, m.ad, m.soyad
+) t
+WHERE t.toplam_harcama > (
+    SELECT AVG(musteri_harcama.toplam)
+    FROM (
+        SELECT COALESCE(SUM(sd2.adet * sd2.birim_fiyat), 0) AS toplam
+        FROM musteriler m2
+        LEFT JOIN siparisler s2 ON m2.id = s2.musteri_id AND s2.durum != 'İptal'
+        LEFT JOIN siparisdetaylari sd2 ON s2.id = sd2.siparis_id
+        GROUP BY m2.id
+    ) musteri_harcama
+);
+
+-- 20. Ürünleri fiyatına göre etiketle: 500 altı "Ekonomik", 500-2000 "Orta Segment", 2000 üstü "Premium"
+SELECT ad, fiyat,
+    CASE 
+        WHEN fiyat < 500 THEN 'Ekonomik'
+        WHEN fiyat BETWEEN 500 AND 2000 THEN 'Orta Segment'
+        ELSE 'Premium'
+    END AS segment
+FROM urunler;
+
+-- 21. Stok durumunu yazıyla göster: 0 ise "Tükendi", 10'dan azsa "Kritik Stok", diğerleri "Yeterli"
+SELECT ad, stok,
+    CASE 
+        WHEN stok = 0 THEN 'Tükendi'
+        WHEN stok < 10 THEN 'Kritik Stok'
+        ELSE 'Yeterli'
+    END AS stok_durumu
+FROM urunler;
+
+-- 22. Müşterileri toplam harcamalarına göre sınıflandır (5000+ Altın, 2000-5000 Gümüş, altı Bronz, hiç yoksa Yeni Üye)
+SELECT m.ad, m.soyad, COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) AS toplam_harcama,
+    CASE 
+        WHEN COUNT(s.id) = 0 THEN 'Yeni Üye'
+        WHEN COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) > 5000 THEN 'Altın Üye'
+        WHEN COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) BETWEEN 2000 AND 5000 THEN 'Gümüş Üye'
+        ELSE 'Bronz Üye'
+    END AS uyelik_seviyesi
+FROM musteriler m
+LEFT JOIN siparisler s ON m.id = s.musteri_id AND s.durum != 'İptal'
+LEFT JOIN siparisdetaylari sd ON s.id = sd.siparis_id
+GROUP BY m.id, m.ad, m.soyad;
+
+-- 23. Sipariş durumlarını özel sayısal önceliğe çevirip sırala (Hazırlanıyor -> Kargoda -> Teslim Edildi -> İptal)
+SELECT * FROM siparisler
+ORDER BY 
+    CASE durum
+        WHEN 'Hazırlanıyor' THEN 1
+        WHEN 'Kargoda' THEN 2
+        WHEN 'Teslim Edildi' THEN 3
+        WHEN 'İptal' THEN 4
+    END;
+
+-- 24. Tek sorguyla her durumdan kaç sipariş olduğunu yan yana sütunlar halinde göster (Pivot Tablo)
+SELECT 
+    SUM(CASE WHEN durum = 'Hazırlanıyor' THEN 1 ELSE 0 END) AS Hazırlanıyor,
+    SUM(CASE WHEN durum = 'Kargoda' THEN 1 ELSE 0 END) AS Kargoda,
+    SUM(CASE WHEN durum = 'Teslim Edildi' THEN 1 ELSE 0 END) AS Teslim_Edildi,
+    SUM(CASE WHEN durum = 'İptal' THEN 1 ELSE 0 END) AS İptal
+FROM siparisler;
+
+-- 25. Elektronik kategorisindeki tüm ürünlere %10 zam yap
+UPDATE urunler
+SET fiyat = fiyat * 1.10
+WHERE kategori_id = (SELECT id FROM kategoriler WHERE ad = 'Elektronik');
+
+-- 26. Stoğu 0 olan ürünlerin stoğunu 20 yap
+UPDATE urunler
+SET stok = 20
+WHERE stok = 0;
+
+-- 27. 6 numaralı siparişin durumunu "Kargoda" olarak güncelle
+UPDATE siparisler
+SET durum = 'Kargoda'
+WHERE id = 6;
+
+-- 28. İptal edilen siparişin detaylarını ve siparişin kendisini sil
+
+DELETE FROM siparisdetaylari
+WHERE siparis_id IN (SELECT id FROM siparisler WHERE durum = 'İptal');
+
+
+DELETE FROM siparisler
+WHERE durum = 'İptal';
+
+--Final 
+SELECT 
+    m.ad || ' ' || m.soyad AS musteri_ad_soyad,
+    m.sehir,
+    COUNT(DISTINCT s.id) AS toplam_siparis_sayisi,
+    COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) AS toplam_harcama,
+    MAX(s.tarih) AS en_son_siparis_tarihi,
+    CASE 
+        WHEN COUNT(s.id) = 0 THEN 'Yeni Üye'
+        WHEN COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) > 5000 THEN 'Altın Üye'
+        WHEN COALESCE(SUM(sd.adet * sd.birim_fiyat), 0) BETWEEN 2000 AND 5000 THEN 'Gümüş Üye'
+        ELSE 'Bronz Üye'
+    END AS uyelik_seviyesi
+FROM musteriler m
+LEFT JOIN siparisler s ON m.id = s.musteri_id AND s.durum != 'İptal'
+LEFT JOIN siparisdetaylari sd ON s.id = sd.siparis_id
+GROUP BY m.id, m.ad, m.soyad, m.sehir
+ORDER BY toplam_harcama DESC;
